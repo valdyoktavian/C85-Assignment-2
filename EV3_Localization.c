@@ -210,7 +210,6 @@ int main(int argc, char *argv[])
  // HERE - write code to call robot_localization() and go_to_target() as needed, any additional logic required to get the
  //        robot to complete its task should be here.
 
-
  // Cleanup and exit - DO NOT WRITE ANY CODE BELOW THIS LINE
  int dr = 0;
   pid_t p[100];
@@ -219,6 +218,8 @@ int main(int argc, char *argv[])
 while(cntr < 100) {
   fprintf(stderr, "start\n");
   int col[8] = {0,0,0,0,0,0,0};
+  find_street();
+
   for(int i = 0; i < 10; i++){
     int d = BT_read_colour_sensor(PORT_3);
     if(d < 0 || d > 7) continue;
@@ -236,12 +237,12 @@ while(cntr < 100) {
     if(p[cntr] == 0) BT_drive(MOTOR_A, MOTOR_D, 10);
     cntr += 1;
   }
-  else if(max == 4 && dr == 1){
-    p[cntr] = fork();
-    if(p == 0) BT_turn(MOTOR_A, 20, MOTOR_D, 0);
-    cntr += 1;
-    sleep(20);
-  }
+  // else if(max == 4 && dr == 1){
+  //   p[cntr] = fork();
+  //   if(p == 0) BT_turn(MOTOR_A, 20, MOTOR_D, 0);
+  //   cntr += 1;
+  //   sleep(20);
+  // }
   else if(max != 1 && dr == 1){ 
     dr = 0;
     p[cntr] = fork();
@@ -269,6 +270,35 @@ int find_street(void)
   * You can use the return value to indicate success or failure, or to inform the rest of your code of the state of your
   * bot after calling this function
   */   
+  
+  while(1) {
+    int d = BT_read_colour_sensor(PORT_3);
+    if (d == 1) {
+      return(1);
+    }
+    else {
+      BT_all_stop(1);
+      pid_t p = fork();
+      if (p == 0) {
+        
+          BT_turn(MOTOR_A, 20, MOTOR_D, 0);
+      }
+      else {
+        int array[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+        while (1) {
+          int d = BT_read_colour_sensor(PORT_3);
+            if (d == 1 || d == 4) {
+              BT_all_stop(1);
+              return(1);
+            } else {
+              BT_drive(MOTOR_A, MOTOR_D, -10); // Go back a little
+              sleep(1); // Wait for a moment
+              BT_turn(MOTOR_A, 20, MOTOR_D, 0); // Rotate a little
+            }
+          }
+      }
+    }
+  } 
   return(0);
 }
 
@@ -279,7 +309,8 @@ int drive_along_street(void)
   * the map. It stops at an intersection.
   * 
   * You can implement this in many ways, including a controlled (PID for example), a neural network trained to track and
-  * follow streets, or a carefully coded process of scanning and moving. It's up to you, feel free to consult your TA
+  *
+  *  follow streets, or a carefully coded process of scanning and moving. It's up to you, feel free to consult your TA
   * or the course instructor for help carrying out your plan.
   * 
   * You can use the return value to indicate success or failure, or to inform the rest of your code of the state of your
