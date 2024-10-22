@@ -83,9 +83,11 @@ int drive_along_street(void);
 int scan_intersection(int *tl, int *tr, int *br, int *bl);
 int turn_at_intersection(int turn_direction);
 
-int checkColor(void);
+int checkColor(char sensor_port, int num);
 
 void calibrate_sensor(void);
+
+void rotate(int ang);
 unsigned char *readPPMimage(const char *filename, int *rx, int*ry);
 
 #endif

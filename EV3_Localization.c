@@ -210,48 +210,46 @@ int main(int argc, char *argv[])
  // HERE - write code to call robot_localization() and go_to_target() as needed, any additional logic required to get the
  //        robot to complete its task should be here.
 
+ int rob_x = -1;
+ int rob_y = -1;
+ int dir = -1;
+ robot_localization(&rob_x, &rob_y, &dir);
+
  // Cleanup and exit - DO NOT WRITE ANY CODE BELOW THIS LINE
- int dr = 0;
-  pid_t p[100];
-  memset(p, 0, 100);
-  int cntr = 0;
 
-  fprintf(stderr, "start\n");
-  int pow = 10;
+  
+ fprintf(stderr, "deon");
+ BT_close();
+ free(map_image);
+ exit(0);
+}
 
-
-  //find_street();
-  int tl, tr, br, bl;
-    tl = 0;
-    tr = 0;
-    tr = 0;
-    bl = 0;
-  //   scan_intersection(&tl, &tr, &br, &bl);
-  //   BT_all_stop(1);
-  //   printf("tl: %d, tr: %d, br: %d, bl: %d\n", tl, tr, br, bl);
-  //   printf("hello\n");
-  //   return 0;
-
-char inpp;
-
-int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-
-BT_drive(MOTOR_A,MOTOR_D, 10);
-int kb = 0;
-while(1) {
-  char n = read(STDIN_FILENO, &inpp, 1);
-  if(inpp == 'c'){
-    BT_all_stop(1);
-    break;
+void rotate(int angle){
+  if(abs(angle) > 360){
+    printf("For safety, angle should be in interval [-360, 360]");
   }
+ int ang = 0;
+ int rt = 0;
+ BT_all_stop(1);
+ BT_read_gyro(PORT_2, 1, &ang, &rt);
+ BT_turn(MOTOR_A, -12, MOTOR_D, 12);
+ int pow;
+ if(angle > 0) pow = 12;
+ else pow = -12;
+ while(abs(ang) < abs(angle) - (1 + abs(angle)/360)){
+  BT_read_gyro(PORT_2, 0, &ang, &rt);
+ }
+ BT_all_stop(1); // Ensure the robot stops after turning
 
-  //continue;
+}
+
+int checkColor(char sensor_port, int num){
+  // num : the number of checking made
+
   int co;
-  int col[8] = {0,0,0,0,0,0,0};
-  for(int i = 0; i < 10; i++){
-    int d = checkColor();
-    //int d = BT_read_colour_sensor(PORT_3);
+  int col[8] = {0,0,0,0,0,0,0,0};
+  for(int i = 0; i < num; i++){
+    int d = BT_read_colour_sensor(PORT_3);
     if(d >= 0 && d < 8){
       col[d]++;
     }
@@ -263,80 +261,7 @@ while(1) {
       max = j;
     }
   }
-
-  int nn = read(STDIN_FILENO, &co, 1);
-  if(nn > 0) max = co;
-
-  if(max == 1  && dr == 0){
-    BT_drive(MOTOR_A, MOTOR_D, pow);
-    dr = 1;
-  }
-  else if(max == 5 && dr == 1){
-
-    BT_all_stop(1);
-
-    int ang =0 ;
-    int rt = 0;
-    BT_read_gyro(PORT_2, 1, &ang, &rt);
-    BT_turn(MOTOR_A, 10, MOTOR_D, -10);
-    while(abs(ang) < 173){
-      BT_read_gyro(PORT_2, 0, &ang, &rt);
-      fprintf(stderr, "ang: %d\n", ang);
-    }
-    dr = 0;
-  }
-  else if(max == 4 && dr == 1){
-    sleep(1);
-    scan_intersection(&tl, &tr, &br, &bl);
-    printf("tl: %d, tr: %d, br: %d, bl: %d\n", tl, tr, br, bl);
-    dr = 0;
-    continue;
-    int ang =0 ;
-    int rt = 0;
-    BT_read_gyro(PORT_2, 1, &ang, &rt);
-    BT_turn(MOTOR_A, 10, MOTOR_D, -10);
-    while(abs(ang) < 88){
-      BT_read_gyro(PORT_2, 0, &ang, &rt);
-      fprintf(stderr, "ang: %d\n", ang);
-    }
-    BT_all_stop(1);
-    dr = 0;
-  }
-  //max != 1 && max != 4 && max != 5 || dr == 1)
-  else if(max != 1){
-    //BT_all_stop(1);
-    find_street();
-    fprintf(stderr, "check\n");
-    dr = 0;
-  }
-  else if(dr == 0){
-    BT_drive(MOTOR_A,MOTOR_D, -4);
-  }
-  //else if(max != 1) find_street();
-  printf("max: %d\n", max);
-}
- 
-
- fprintf(stderr, "deon");
- BT_close();
- free(map_image);
- exit(0);
-}
-
-
-int checkColor(void){
-  return BT_read_colour_sensor(PORT_3);
-
-  if(mnl == 4){
-    read(STDIN_FILENO, &mnl, sizeof(mnl));  
-  }
-  mnl =2;
-  if(mnl == 0){
-    int co;
-    read(STDIN_FILENO, &co, sizeof(co));
-    return co;
-  }
-  else return BT_read_colour_sensor(PORT_3);
+  return max;
 }
 
 int find_street(void)   
@@ -355,57 +280,12 @@ int find_street(void)
       BT_all_stop(1);
       break;
     }
-    int d = checkColor();
+    int d = checkColor(PORT_2, 9);
     //int d = BT_read_colour_sensor(PORT_3);
     if (d == 1) {
       return(1);
     }
     else {
-      // BT_all_stop(1);
-      //     BT_turn(MOTOR_A, 20, MOTOR_D, 0);
-      //   int array[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-        
-      //   while (1) {
-      //       fprintf(stderr, "in loop\n");
-
-      //       char inpt;
-      //       int n = read(STDIN_FILENO, &inpt, 0);
-      //       if(inpt == 'c'){
-      //         BT_all_stop(1);
-      //         return(1);
-      //       }
-      //       // Take 15 readings and find the mode
-      //       int readings[15] = {0};
-      //       int counts[8] = {0}; // Assuming 8 possible color values (0-7)
-            
-      //       for (int k = 0; k < 15; k++) {
-      //         readings[k] = BT_read_colour_sensor(PORT_3);
-      //         if (readings[k] >= 0 && readings[k] < 8) {
-      //           counts[readings[k]]++;
-      //         }
-      //       }
-            
-      //       // Find the mode of the readings
-      //       int mode = 0;
-      //       for (int k = 1; k < 8; k++) {
-      //         if (counts[k] > counts[mode]) {
-      //           mode = k;
-      //         }
-      //       }
-            
-      //       d = mode;
-      //       int d = BT_read_colour_sensor(PORT_3);
-      //       //
-      //       if (d == 1 || d == 4 || d == 5) {
-      //         BT_all_stop(1);
-      //         return(1);
-      //       } else {
-      //         BT_drive(MOTOR_A, MOTOR_D, -5); // Go back a little
-      //         sleep(1); // Wait for a moment
-      //         BT_turn(MOTOR_A, -2, MOTOR_D, 2); // Rotate a little
-      //       }
-      //   }
-      // Rotate slowly to the left up to 45 degrees
       int ang = 0;
       int rt = 0;
       BT_turn(MOTOR_A, -6, MOTOR_D, 6);
@@ -413,8 +293,10 @@ int find_street(void)
           BT_read_gyro(PORT_2, 0, &ang, &rt);
           int col[8] = {0, 0, 0, 0, 0, 0, 0, 0};
           for (int i = 0; i < 25; i++) {
-          int d = checkColor();
-          //int d = BT_read_colour_sensor(PORT_3);
+          //int d = checkColor();
+          int max = checkColor(PORT_2, 9);
+          /*
+          int d = BT_read_colour_sensor(PORT_3);
           if (d >= 0 && d < 8) {
           col[d]++;
           }
@@ -424,7 +306,7 @@ int find_street(void)
           if (col[j] > col[max]) {
           max = j;
           }
-          }
+          }*/
           if (max == 1) { // Black detected
           BT_all_stop(1);
           return 1;
@@ -433,6 +315,7 @@ int find_street(void)
       BT_all_stop(1);
 
       // Rotate slowly to the right up to 90 degrees (45 degrees from the original position)
+      //rotate(90);
       ang = 0;
       BT_read_gyro(PORT_2, 1, &ang, &rt);
       BT_turn(MOTOR_A, 6, MOTOR_D, -6);
@@ -440,8 +323,8 @@ int find_street(void)
           BT_read_gyro(PORT_2, 0, &ang, &rt);
           int col[8] = {0, 0, 0, 0, 0, 0, 0, 0};
           for (int i = 0; i < 25; i++) {
-          int d = checkColor();
-          //int d = BT_read_colour_sensor(PORT_3);
+          //int d = checkColor();
+          int d = BT_read_colour_sensor(PORT_3);
           if (d >= 0 && d < 8) {
           col[d]++;
           }
@@ -458,6 +341,7 @@ int find_street(void)
           }
       }
       BT_all_stop(1);
+    }
     }
   } 
   return(0);
@@ -516,21 +400,27 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
  BT_read_gyro(PORT_2, 1, &ang, &rt);
  int pow = 12;
  BT_turn(MOTOR_A, pow, MOTOR_D, -pow); // Slower turn
+ rotate(45);
+ /*
  while (ang < 43) {
   int err = 44 - ang;
-  /*if(abs(err  < 6)){
+  if(abs(err  < 6)){
     pow = 4;
-  }*/
+  }
   //BT_turn(MOTOR_A, pow, MOTOR_D, -pow);
   BT_read_gyro(PORT_2, 0, &ang, &rt);
   //ang += rt; // Use rate in the calculation of the angle
   usleep(1000); // Sleep for 10ms to slow down the loop
- }
+ }*/
+ usleep(1000);
+
  BT_all_stop(1); // Ensure the robot stops after turning
 // robot already at the NW
 
 
  // Collect readings for 50 samples and determine the mode
+ int mode = checkColor(PORT_2, 50);
+ /*
  int readings[50];
  int counts[8] = {0}; // Assuming 8 possible color values (0-7)
  for (int i = 0; i < 50; i++) {
@@ -547,7 +437,7 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
   if (counts[i] > counts[mode]) {
       mode = i;
   }
- }
+ }*/
 
  // Store the mode in the appropriate variable
  *tl = mode;
@@ -558,6 +448,8 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
  // Repeat the process for the other three directions
  for (int i = 0; i < 3; i++) {
   // Rotate 90 degrees
+  rotate(90);
+  /*
   ang = 0;
   BT_read_gyro(PORT_2, 1, &ang, &rt);
   BT_turn(MOTOR_A, 12, MOTOR_D, -12);
@@ -566,7 +458,9 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
   }
   
   BT_all_stop(1);
+  */
   // Collect readings for 50 samples and determine the mode
+  /*
   memset(counts, 0, sizeof(counts)); // Reset counts
   for (int j = 0; j < 50; j++) {
       readings[j] = checkColor();
@@ -582,8 +476,8 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
       if (counts[j] > counts[mode]) {
        mode = j;
       }
-  }
-
+  }*/
+  mode = checkColor(PORT_2, 50);
   // Store the mode in the appropriate variable and print the value
   if (i == 0) {
       *tr = mode;
@@ -597,7 +491,12 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
   }
  }
  printf("TESSSS\n");
+ 
  // Rotate back to the original direction (N)
+ rotate(45);
+
+
+ /*
  ang = 0;
  BT_all_stop(1);
  BT_read_gyro(PORT_2, 1, &ang, &rt);
@@ -605,7 +504,7 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
  while (ang > -43) {
   printf("ang now : %d\n", ang);
   BT_read_gyro(PORT_2, 0, &ang, &rt);
- }
+ }*/
   BT_all_stop(1); // Ensure the robot stops after turning
  return(0);
 }
@@ -679,6 +578,67 @@ int robot_localization(int *robot_x, int *robot_y, int *direction)
    *   TO DO  -   Complete this function
    ***********************************************************************************************************************/
 
+int dr = 0;
+
+fprintf(stderr, "start\n");
+int pow = 10;
+
+
+  //find_street();
+int tl, tr, br, bl;
+tl = 0;
+tr = 0;
+tr = 0;
+bl = 0;
+
+BT_drive(MOTOR_A,MOTOR_D, 10);
+int kb = 0;
+int turn = 0;
+int yel = 0;
+while(kb == 0) {
+  //continue;
+  int num = 9;
+  int max = checkColor(PORT_2, num);
+  if(max == 1  && dr == 0){
+    BT_drive(MOTOR_A, MOTOR_D, pow);
+    dr = 1;
+    if(turn == 1) yel += 1;
+  }
+  else if(max == 5 && dr == 1){
+    BT_all_stop(1);
+    int ang =0 ;
+    int rt = 0;
+    BT_read_gyro(PORT_2, 1, &ang, &rt);
+    BT_turn(MOTOR_A, 10, MOTOR_D, -10);
+    while(abs(ang) < 173){
+      BT_read_gyro(PORT_2, 0, &ang, &rt);
+      fprintf(stderr, "ang: %d\n", ang);
+    }
+    dr = 0;
+    turn += 1;
+  }
+  else if(max == 4 && dr == 1){
+    if(turn == 0 || turn == 1) continue;
+    else if(turn == 2){
+      rotate(90);
+    }
+    else if(turn == 3){
+      sleep(1);
+      scan_intersection(&tl, &tr, &br, &bl);
+      printf("tl: %d, tr: %d, br: %d, bl: %d\n", tl, tr, br, bl);
+      dr = 0;
+    }
+  }
+  else if(max != 1){
+    find_street();
+    fprintf(stderr, "check\n");
+    dr = 0;
+  }
+  else if(dr == 0){
+    BT_drive(MOTOR_A,MOTOR_D, -4);
+  }
+  printf("max: %d\n", max);
+}
  // Return an invalid location/direction and notify that localization was unsuccessful (you will delete this and replace it
  // with your code).
  *(robot_x)=-1;
