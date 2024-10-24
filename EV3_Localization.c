@@ -217,13 +217,12 @@ int main(int argc, char *argv[])
  int rob_y = -1;
  int dir = -1;
  robot_localization(&rob_x, &rob_y, &dir);
-
+ go_to_target(rob_x, rob_y, dir, dest_x, dest_y);
 
   //rotate(45);
  // Cleanup and exit - DO NOT WRITE ANY CODE BELOW THIS LINE
 
   
- fprintf(stderr, "deon");
  BT_close();
  free(map_image);
  exit(0);
@@ -231,20 +230,20 @@ int main(int argc, char *argv[])
 
 void rotate(int angle){
   if(abs(angle) > 360){
-    printf("For safety, angle should be in interval [-360, 360]");
+    // printf("For safety, angle should be in interval [-360, 360]");
   }
  int ang = 0;
  int rt = 0;
  BT_all_stop(1);
  BT_read_gyro(PORT_2, 1, &ang, &rt);
- printf("start ang : %d\n", ang);
+ //printf("start ang : %d\n", ang);
  int pow;
  if(angle > 0) pow = 12;
  else pow = -12;
 
  BT_turn(MOTOR_A, pow, MOTOR_D, -pow);
  while(ang < angle - 2){
-  printf("ang : %d\n", ang);
+  //printf("ang : %d\n", ang);
   BT_read_gyro(PORT_2, 0, &ang, &rt);
  }
  
@@ -283,82 +282,46 @@ int find_street(void)
   * bot after calling this function
   */   
   while(1) {
-    printf("tr_ang : %d\n", tr_ang);
-    char input;
-    char n = read(STDIN_FILENO, &input, 0);
-    if(input == 'c'){
-      BT_all_stop(1);
-      break;
-    }
     int d = checkColor(PORT_2, 9);
-    //int d = BT_read_colour_sensor(PORT_3);
     if (d == 1) {
-      return(1);
-    }
-    else {
+      BT_all_stop(1);
+      return 1;
+    } else {
       int ang = 0;
       int rt = 0;
-      int pp;
-      //if(tr_ang > 0) pp = -6;
-      //else pp = 6;
       BT_read_gyro(PORT_2, 1, &ang, &rt);
       BT_turn(MOTOR_A, -6, MOTOR_D, 6);
       while (abs(ang) < 30) {
-          BT_read_gyro(PORT_2, 0, &ang, &rt);
-          int col[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-          for (int i = 0; i < 25; i++) {
-          //int d = checkColor();
-          int max = checkColor(PORT_2, 9);
-          /*
-          int d = BT_read_colour_sensor(PORT_3);
-          if (d >= 0 && d < 8) {
-          col[d]++;
-          }
-          }
-          int max = 0;
-          for (int j = 1; j < 8; j++) {
-          if (col[j] > col[max]) {
-          max = j;
-          }
-          }*/
-          if (max == 1) { // Black detected
+        BT_read_gyro(PORT_2, 0, &ang, &rt);
+        int max = checkColor(PORT_2, 9);
+        if (max == 1) { // Black detected
           BT_all_stop(1);
           return 1;
-          }
+        }
       }
       BT_all_stop(1);
 
       // Rotate slowly to the right up to 90 degrees (45 degrees from the original position)
-      //rotate(90);
       ang = 0;
       BT_read_gyro(PORT_2, 1, &ang, &rt);
       BT_turn(MOTOR_A, 6, MOTOR_D, -6);
       while (abs(ang) < 60) {
-          BT_read_gyro(PORT_2, 0, &ang, &rt);
-          int col[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-          for (int i = 0; i < 25; i++) {
-          //int d = checkColor();
-          int d = BT_read_colour_sensor(PORT_3);
-          if (d >= 0 && d < 8) {
-          col[d]++;
-          }
-          }
-          int max = 0;
-          for (int j = 1; j < 8; j++) {
-          if (col[j] > col[max]) {
-          max = j;
-          }
-          }
-          if (max == 1) { // Black detected
+        BT_read_gyro(PORT_2, 0, &ang, &rt);
+        int max = checkColor(PORT_2, 9);
+        if (max == 1) { // Black detected
           BT_all_stop(1);
           return 1;
-          }
+        }
       }
       BT_all_stop(1);
+
+      // If no street is found, move forward a bit and try again
+      BT_drive(MOTOR_A, MOTOR_D, 10);
+      usleep(500000); // Move forward for 0.5 seconds
+      BT_all_stop(1);
     }
-    }
-  } 
-  return(0);
+  }
+  return 0;
 }
 
 int drive_along_street(void)
@@ -415,17 +378,6 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
  int pow = 12;
  //BT_turn(MOTOR_A, pow, MOTOR_D, -pow); // Slower turn
  rotate(45);
- /*
- while (ang < 43) {
-  int err = 44 - ang;
-  if(abs(err  < 6)){
-    pow = 4;
-  }
-  //BT_turn(MOTOR_A, pow, MOTOR_D, -pow);
-  BT_read_gyro(PORT_2, 0, &ang, &rt);
-  //ang += rt; // Use rate in the calculation of the angle
-  usleep(1000); // Sleep for 10ms to slow down the loop
- }*/
  usleep(1000);
 
  BT_all_stop(1); // Ensure the robot stops after turning
@@ -434,26 +386,6 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
 
  // Collect readings for 50 samples and determine the mode
  int mode = checkColor(PORT_2, 50);
- /*
- int readings[50];
- int counts[8] = {0}; // Assuming 8 possible color values (0-7)
- for (int i = 0; i < 50; i++) {
-  readings[i] = checkColor();
-  //readings[i] = BT_read_colour_sensor(PORT_3);
-  if (readings[i] >= 0 && readings[i] < 8) {
-      counts[readings[i]]++;
-  }
- }
-
- // Find the mode of the readings
- int mode = 0;
- for (int i = 1; i < 8; i++) {
-  if (counts[i] > counts[mode]) {
-      mode = i;
-  }
- }*/
-
- // Store the mode in the appropriate variable
  *tl = mode;
 
  // Print the value
@@ -463,63 +395,26 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
  for (int i = 0; i < 3; i++) {
   // Rotate 90 degrees
   rotate(90);
-  /*
-  ang = 0;
-  BT_read_gyro(PORT_2, 1, &ang, &rt);
-  BT_turn(MOTOR_A, 12, MOTOR_D, -12);
-  while (abs(ang) < 88) {
-      BT_read_gyro(PORT_2, 0, &ang, &rt);
-  }
   
-  BT_all_stop(1);
-  */
-  // Collect readings for 50 samples and determine the mode
-  /*
-  memset(counts, 0, sizeof(counts)); // Reset counts
-  for (int j = 0; j < 50; j++) {
-      readings[j] = checkColor();
-      //readings[j] = BT_read_colour_sensor(PORT_3);
-      if (readings[j] >= 0 && readings[j] < 8) {
-       counts[readings[j]]++;
-      }
-  }
-
-  // Find the mode of the readings
-  mode = 0;
-  for (int j = 1; j < 8; j++) {
-      if (counts[j] > counts[mode]) {
-       mode = j;
-      }
-  }*/
   mode = checkColor(PORT_2, 50);
   // Store the mode in the appropriate variable and print the value
   if (i == 0) {
-      *tr = mode;
-      printf("Top-right building color: %d\n", *tr);
+      *bl = mode;
+      printf("Bottom-left building color: %d\n", *bl);
   } else if (i == 1) {
       *br = mode;
       printf("Bottom-right building color: %d\n", *br);
   } else if (i == 2) {
-      *bl = mode;
-      printf("Bottom-left building color: %d\n", *bl);
+      *tr = mode;
+      printf("Top-right building color: %d\n", *tr);
   }
  }
- printf("TESSSS\n");
+ //  printf("TESSSS\n");
  
  // Rotate back to the original direction (N)
  rotate(45);
 
-
- /*
- ang = 0;
- BT_all_stop(1);
- BT_read_gyro(PORT_2, 1, &ang, &rt);
- BT_turn(MOTOR_A, -12, MOTOR_D, 12);
- while (ang > -43) {
-  printf("ang now : %d\n", ang);
-  BT_read_gyro(PORT_2, 0, &ang, &rt);
- }*/
-  BT_all_stop(1); // Ensure the robot stops after turning
+ BT_all_stop(1); // Ensure the robot stops after turning
  return(0);
 }
 
@@ -604,93 +499,105 @@ tl = 0;
 tr = 0;
 tr = 0;
 bl = 0;
-
+int shift = 1;
 BT_drive(MOTOR_A,MOTOR_D, 10);
 int kb = 0;
 int turn = 0;
 int yel = 0;
-int tr_ang;
+//int tr_ang;
 while(kb == 0) {
   //continue;
-  printf("tr_ang : %d\n", tr_ang);
+  //printf("tr_ang : %d\n", tr_ang);
   int num = 9;
   int max = checkColor(PORT_2, num);
-  if(max == 1  && dr == 0){
-    tr_ang = 0;
-    BT_read_gyro(PORT_2, 1, &tr_ang, &tr_rt);
-    BT_drive(MOTOR_A, MOTOR_D, pow);
+  if(max == 1 && dr == 0){
+    BT_drive(MOTOR_A,MOTOR_D, 12);
     dr = 1;
-    if(turn == 1) yel += 1;
-  }
-  else if(max == 1 && dr == 1){
-    BT_read_gyro(PORT_2, 0, &tr_ang, &tr_rt);
   }
   else if(max == 5){
     BT_all_stop(1);
-    int ang = 0 ;
-    int rt = 0;
-    BT_read_gyro(PORT_2, 1, &ang, &rt);
-    BT_turn(MOTOR_A, 10, MOTOR_D, -10);
-    while(abs(ang) < 173){
-      BT_read_gyro(PORT_2, 0, &ang, &rt);
-      fprintf(stderr, "ang: %d\n", ang);
-    }
+    rotate(180);
+    
     dr = 0;
-    turn += 1;
-    if(turn == 5) turn = 2;
+    turn +=1;
+    if(turn >= 4) turn =1;
   }
+  // THIS WHERE WE ROTATE
+
   else if(max == 4 && dr == 1){
-    if(turn == 0 || turn == 1) continue;
-    else if(turn == 2){
-      turn += 1;
-      usleep(600000);
-      rotate(90);
-    }
-    else if(turn == 4){
-      usleep(600000 );
-      scan_intersection(&tl, &tr, &br, &bl);
+    if(turn == 1) {sleep (1);  rotate(90); turn +=1; dr = 0; 
+    continue;}
+    else if(turn == 3) {sleep(1);rotate(-90); dr = 0;
+    continue;}
+
       sleep(1);
+      scan_intersection(&tl, &tr, &br, &bl);
       printf("tl: %d, tr: %d, br: %d, bl: %d\n", tl, tr, br, bl);
-      double tot = 0;
+      double tot = 0;      
+      if (shift == 1) {
       for (int j=0; j<sy; j++)
           for (int i=0; i<sx; i++)
           {
             int b = i + j*sx;
+            if(i < sx) beliefs[b][3] = beliefs[b+1][3];
+            if(i > 0) beliefs[b][1] = beliefs[b-1][1];
+            if(j < sy) beliefs[b][0] = beliefs[b+sx][0];
+            if(j > 0) beliefs[b][2] = beliefs[b-sx][2];
+          }
+      for (int j=0; j<sy; j++)
+          for (int i=0; i<sx; i++)
+          {
+            int b = i + j*sx;
+            if(i == sx-1) beliefs[b][3] = 0.001;
+            if(i == 0) beliefs[b][1] = 0.001;
+            if(j == sy-1) beliefs[b][0] = 0.001;
+            if(j == 0) beliefs[b][2] = 0.001;
+          }
+      }
+      shift = 1;
+      for (int j=0; j<sy; j++)
+          for (int i=0; i<sx; i++)
+          {
+            int b = i + j*sx;
+            // Update beliefs based on sensor readings and map data
+            double match_prob = 0.95;
+            double mismatch_prob = 0.05;
+
             if(map[b][0] == tl && map[b][1] == tr && map[b][2] == br && map[b][3] == bl){
-              beliefs[b][0] *= 0.43;
-              beliefs[b][1] *= 0.11;
-              beliefs[b][2] *= 0.11;
-              beliefs[b][3] *= 0.11;
+              beliefs[b][0] *= match_prob;
+              beliefs[b][1] *= mismatch_prob;
+              beliefs[b][2] *= mismatch_prob;
+              beliefs[b][3] *= mismatch_prob;
             }
             else if(map[b][1] == tl && map[b][2] == tr && map[b][3] == br && map[b][0] == bl){
-              beliefs[b][0] *= 0.11;
-              beliefs[b][1] *= 0.43;
-              beliefs[b][2] *= 0.11;
-              beliefs[b][3] *= 0.11;
+              beliefs[b][0] *= mismatch_prob;
+              beliefs[b][1] *= match_prob;
+              beliefs[b][2] *= mismatch_prob;
+              beliefs[b][3] *= mismatch_prob;
             }
             else if(map[b][2] == tl && map[b][3] == tr && map[b][0] == br && map[b][1] == bl){
-              beliefs[b][0] *= 0.11;
-              beliefs[b][1] *= 0.11;
-              beliefs[b][2] *= 0.43;
-              beliefs[b][3] *= 0.11;
+              beliefs[b][0] *= mismatch_prob;
+              beliefs[b][1] *= mismatch_prob;
+              beliefs[b][2] *= match_prob;
+              beliefs[b][3] *= mismatch_prob;
             }
             else if(map[b][3] == tl && map[b][0] == tr && map[b][1] == br && map[b][2] == bl){
-              beliefs[b][0] *= 0.11;
-              beliefs[b][1] *= 0.11;
-              beliefs[b][2] *= 0.11;
-              beliefs[b][3] *= 0.43;
+              beliefs[b][0] *= mismatch_prob;
+              beliefs[b][1] *= mismatch_prob;
+              beliefs[b][2] *= mismatch_prob;
+              beliefs[b][3] *= match_prob;
             }
             else{
-              beliefs[b][0] *= 0.06;
-              beliefs[b][1] *= 0.06;
-              beliefs[b][2] *= 0.06;
-              beliefs[b][3] *= 0.06;
+              beliefs[b][0] *= mismatch_prob;
+              beliefs[b][1] *= mismatch_prob;
+              beliefs[b][2] *= mismatch_prob;
+              beliefs[b][3] *= mismatch_prob;
             }
 
           // implement shift up left down right
 
             tot += beliefs[b][0] + beliefs[b][1] + beliefs[b][2] + beliefs[b][3];
-            printf("%d : [0] : %f\t [1] : %f\t [2] : %f\t : [3] : %f\n", b, beliefs[b][0], beliefs[b][1], beliefs[b][2], beliefs[b][3]);
+            
           }
       
 
@@ -700,16 +607,19 @@ while(kb == 0) {
             int b = i + j*sx;
             for(int t = 0; t < 4; t++){
               beliefs[b][t] = beliefs[b][t]/tot;
-              if(beliefs[b][t] >= 0.5){
+              if(beliefs[b][t] >= 0.75){
                 *(robot_x) = i;
                 *(robot_y) = j;
                 *direction = t;
+                printf("robot_x: %d, robot_y: %d, direction: %d\n", *robot_x, *robot_y, *direction);
                 return 1;
               }
+
             }
+          printf("%d : [0] : %f\t [1] : %f\t [2] : %f\t : [3] : %f\n", b, beliefs[b][0], beliefs[b][1], beliefs[b][2], beliefs[b][3]);      
+    
           }
-      dr = 0;
-    }
+    dr = 0;
   }
   else if(max != 1){
     find_street();
@@ -721,11 +631,9 @@ while(kb == 0) {
   }
   printf("max: %d\n", max);
 }
+
  // Return an invalid location/direction and notify that localization was unsuccessful (you will delete this and replace it
  // with your code).
- *(robot_x)=-1;
- *(robot_y)=-1;
- *(direction)=-1;
  return(0);
 }
 
@@ -753,18 +661,73 @@ int go_to_target(int robot_x, int robot_y, int direction, int target_x, int targ
    ***********************************************************************************************************************/
   int dis_x = target_x - robot_x;
   int dis_y = target_y - robot_y;
-  int targ_dir = -1;
-  if(dis_x >= 0 && dis_y >= 0){
-    targ_dir = 0;
-  }
-  else if(dis_x >= 0 && dis_y < 0){
-    targ_dir = 1;
-  }
-  else if(dis_x <0 && dis_y < 0){
-    targ_dir = 2;
-  }
-  else targ_dir = 3;
+  // Calculate the number of intersections to move in the x and y directions
+  int intersections_x = abs(dis_x);
+  int intersections_y = abs(dis_y);
 
+  // Move in the x direction first
+  for (int i = 0; i < intersections_x; i++) {
+    if (dis_x > 0) {
+      // Move right
+      if (direction != 1) {
+        // Rotate to face right
+        if (direction == 0) rotate(90);
+        else if (direction == 2) rotate(-90);
+        else if (direction == 3) rotate(180);
+        direction = 1;
+      }
+    } else {
+      // Move left
+      if (direction != 3) {
+        // Rotate to face left
+        if (direction == 0) rotate(-90);
+        else if (direction == 2) rotate(90);
+        else if (direction == 1) rotate(180);
+        direction = 3;
+      }
+    }
+    // Move one intersection
+    BT_drive(MOTOR_A, MOTOR_D, 20);
+    usleep(1000000); // Move forward for 1 second (adjust as needed)
+    BT_all_stop(1);
+  }
+
+  // Move in the y direction next
+  for (int i = 0; i < intersections_y; i++) {
+    if (dis_y > 0) {
+      // Move down
+      if (direction != 2) {
+        // Rotate to face down
+        if (direction == 0) rotate(180);
+        else if (direction == 1) rotate(90);
+        else if (direction == 3) rotate(-90);
+        direction = 2;
+      }
+    } else {
+      // Move up
+      if (direction != 0) {
+        // Rotate to face up
+        if (direction == 2) rotate(180);
+        else if (direction == 1) rotate(-90);
+        else if (direction == 3) rotate(90);
+        direction = 0;
+      }
+    }
+    // Move one intersection
+    BT_drive(MOTOR_A, MOTOR_D, 20);
+    usleep(1000000); // Move forward for 1 second (adjust as needed)
+    BT_all_stop(1);
+  }
+
+  // Check if the robot reached the target location
+  if (robot_x == target_x && robot_y == target_y) {
+    return 1; // Success
+  } else {
+    return 0; // Failure
+  }
+  
+  // move the robot to the location
+  
   // rotate cur_dir to targ_dir
   // track dis_x, dis_y, make one 0 first then the other one and we are done
 
