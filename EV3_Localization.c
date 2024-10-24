@@ -213,10 +213,16 @@ int main(int argc, char *argv[])
  //        robot to complete its task should be here.
 //int tl, tr,bl, br;
 //scan_intersection(&tl, &tr, &bl, &br);
- int rob_x = -1;
- int rob_y = -1;
- int dir = -1;
+ int rob_x = 2;
+ int rob_y = 3;
+ int dir = 2;
+ // call scan
+//  int tl = 0, tr = 0 , br = 0 , bl = 0 ;
+// scan_intersection(&tl, &tr, &br, &bl);
  robot_localization(&rob_x, &rob_y, &dir);
+ printf("--------------------------------\n");
+ printf("localisation is complete\n");
+ printf("-----------------------------------\n");
  go_to_target(rob_x, rob_y, dir, dest_x, dest_y);
 
   //rotate(45);
@@ -254,26 +260,24 @@ void rotate(int angle){
 int checkColor(char sensor_port, int num){
   // num : the number of checking made
 
-  int co;
   int col[8] = {0,0,0,0,0,0,0,0};
   for(int i = 0; i < num; i++){
-    int d = BT_read_colour_sensor(PORT_3);
+    int d = BT_read_colour_sensor(sensor_port);
     if(d >= 0 && d < 8){
       col[d]++;
     }
   }
 
-  int max = -1;
-  for(int j= 0; j < 8; j++){
-    if(col[j] > max){
+  int max = 0;
+  for(int j= 1; j < 8; j++){
+    if(col[j] > col[max]){
       max = j;
     }
   }
   return max;
 }
 
-int find_street(void)   
-{
+int find_street(void)   {
  /*
   * This function gets your robot onto a street, wherever it is placed on the map. You can do this in many ways, but think
   * about what is the most effective and reliable way to detect a street and stop your robot once it's on it.
@@ -282,8 +286,8 @@ int find_street(void)
   * bot after calling this function
   */   
   while(1) {
-    int d = checkColor(PORT_2, 9);
-    if (d == 1) {
+    int d = checkColor(PORT_3, 9);
+    if (d == 1 || d== 4) {
       BT_all_stop(1);
       return 1;
     } else {
@@ -291,10 +295,10 @@ int find_street(void)
       int rt = 0;
       BT_read_gyro(PORT_2, 1, &ang, &rt);
       BT_turn(MOTOR_A, -6, MOTOR_D, 6);
-      while (abs(ang) < 30) {
+      while (abs(ang) < 40) {
         BT_read_gyro(PORT_2, 0, &ang, &rt);
-        int max = checkColor(PORT_2, 9);
-        if (max == 1) { // Black detected
+        int max = checkColor(PORT_3, 9);
+        if (max == 1 || max == 4) { // Black detected
           BT_all_stop(1);
           return 1;
         }
@@ -305,10 +309,10 @@ int find_street(void)
       ang = 0;
       BT_read_gyro(PORT_2, 1, &ang, &rt);
       BT_turn(MOTOR_A, 6, MOTOR_D, -6);
-      while (abs(ang) < 60) {
+      while (abs(ang) < 80) {
         BT_read_gyro(PORT_2, 0, &ang, &rt);
-        int max = checkColor(PORT_2, 9);
-        if (max == 1) { // Black detected
+        int max = checkColor(PORT_3, 9);
+        if (max == 1 || max == 4) { // Black detected
           BT_all_stop(1);
           return 1;
         }
@@ -316,7 +320,7 @@ int find_street(void)
       BT_all_stop(1);
 
       // If no street is found, move forward a bit and try again
-      BT_drive(MOTOR_A, MOTOR_D, 10);
+      BT_drive(MOTOR_A, MOTOR_D, -10);
       usleep(500000); // Move forward for 0.5 seconds
       BT_all_stop(1);
     }
@@ -385,7 +389,7 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
 
 
  // Collect readings for 50 samples and determine the mode
- int mode = checkColor(PORT_2, 50);
+ int mode = checkColor(PORT_3, 50);
  *tl = mode;
 
  // Print the value
@@ -396,7 +400,7 @@ int scan_intersection(int *tl, int *tr, int *br, int *bl)
   // Rotate 90 degrees
   rotate(90);
   
-  mode = checkColor(PORT_2, 50);
+  mode = checkColor(PORT_3, 50);
   // Store the mode in the appropriate variable and print the value
   if (i == 0) {
       *bl = mode;
@@ -491,8 +495,6 @@ int dr = 0;
 
 fprintf(stderr, "start\n");
 int pow = 12;
-
-
   //find_street();
 int tl, tr, br, bl;
 tl = 0;
@@ -516,19 +518,19 @@ while(kb == 0) {
   }
   else if(max == 5){
     BT_all_stop(1);
+    printf("rotating 180");
     rotate(180);
     
     dr = 0;
-    turn +=1;
-    if(turn >= 4) turn =1;
+    // turn =1;
   }
   // THIS WHERE WE ROTATE
 
   else if(max == 4 && dr == 1){
-    if(turn == 1) {sleep (1);  rotate(90); turn +=1; dr = 0; 
+    if(turn == 1) {sleep (1);  printf("rotate 90"); rotate(90); turn = 0; dr = 0; 
     continue;}
-    else if(turn == 3) {sleep(1);rotate(-90); dr = 0;
-    continue;}
+    // else if(turn == 2) {sleep(1); printf("rotate -90"); rotate(-90); dr = 0;
+    // continue;}
 
       sleep(1);
       scan_intersection(&tl, &tr, &br, &bl);
@@ -623,13 +625,14 @@ while(kb == 0) {
   }
   else if(max != 1){
     find_street();
+    printf("max : %d\n", max);
     fprintf(stderr, "check\n");
     dr = 0;
   }
   else if(dr == 0){
     BT_drive(MOTOR_A,MOTOR_D, -4);
   }
-  printf("max: %d\n", max);
+  // printf("max: %d\n", max);
 }
 
  // Return an invalid location/direction and notify that localization was unsuccessful (you will delete this and replace it
@@ -659,79 +662,217 @@ int go_to_target(int robot_x, int robot_y, int direction, int target_x, int targ
   /************************************************************************************************************************
    *   TO DO  -   Complete this function
    ***********************************************************************************************************************/
-  int dis_x = target_x - robot_x;
-  int dis_y = target_y - robot_y;
-  // Calculate the number of intersections to move in the x and y directions
-  int intersections_x = abs(dis_x);
-  int intersections_y = abs(dis_y);
-
-  // Move in the x direction first
-  for (int i = 0; i < intersections_x; i++) {
-    if (dis_x > 0) {
-      // Move right
-      if (direction != 1) {
-        // Rotate to face right
-        if (direction == 0) rotate(90);
-        else if (direction == 2) rotate(-90);
-        else if (direction == 3) rotate(180);
-        direction = 1;
-      }
-    } else {
-      // Move left
-      if (direction != 3) {
-        // Rotate to face left
-        if (direction == 0) rotate(-90);
-        else if (direction == 2) rotate(90);
-        else if (direction == 1) rotate(180);
-        direction = 3;
-      }
-    }
-    // Move one intersection
-    BT_drive(MOTOR_A, MOTOR_D, 20);
-    usleep(1000000); // Move forward for 1 second (adjust as needed)
+  int dir = direction;
+  printf("robot_x: %d, robot_y: %d, target_x: %d, target_y: %d\n", robot_x, robot_y, target_x, target_y);
+  printf("robot_x: %d, target_x: %d", robot_x, target_x);
+  if (target_x > robot_x) {
     BT_all_stop(1);
-  }
-
-  // Move in the y direction next
-  for (int i = 0; i < intersections_y; i++) {
-    if (dis_y > 0) {
-      // Move down
-      if (direction != 2) {
-        // Rotate to face down
-        if (direction == 0) rotate(180);
-        else if (direction == 1) rotate(90);
-        else if (direction == 3) rotate(-90);
-        direction = 2;
-      }
-    } else {
-      // Move up
-      if (direction != 0) {
-        // Rotate to face up
-        if (direction == 2) rotate(180);
-        else if (direction == 1) rotate(-90);
-        else if (direction == 3) rotate(90);
-        direction = 0;
-      }
+    if (dir == 0) rotate(270);
+    else if (dir == 2) rotate(90);
+    else if (dir == 3) rotate(180);
+    dir = 1;
+    int cp_x = robot_x;
+    int dr = 0;
+    while (cp_x < target_x) {
+      printf("cp_x: %d\n", cp_x);
+      int mx = checkColor(PORT_3, 9);
+      if (mx == 1 && dr == 0) {
+        BT_drive(MOTOR_A, MOTOR_D, 10);
+        dr = 1;
+      } else if (mx == 4 && dr == 1) {
+        sleep(1);
+        // int tl, tr, bl, br;
+        // scan_intersection(&tl, &tr, &bl, &br);
+        // int b = target_y * sx + cp_x;
+        // if (map[b][1] != tl || map[b][2] != tr || map[b][3] != br || map[b][0] != bl) return 0;
+        cp_x += 1;
+        dr = 0;
+      } else if (mx == 5) return 0;
+      else if (mx != 1) {find_street(); dr = 0;}
     }
-    // Move one intersection
-    BT_drive(MOTOR_A, MOTOR_D, 20);
-    usleep(1000000); // Move forward for 1 second (adjust as needed)
-    BT_all_stop(1);
+  } else if (target_x < robot_x) {
+    if (dir == 0) rotate(90);
+    else if (dir == 1) rotate(180);
+    else if (dir == 2) rotate(270);
+    dir = 3;
+    int cp_x = robot_x;
+    int dr = 0;
+    while (cp_x > target_x) {
+      printf("cp_x: %d\n", cp_x);
+      int mx = checkColor(PORT_3, 9);
+      if (mx == 1 && dr == 0) {
+        BT_drive(MOTOR_A, MOTOR_D, 10);
+        dr = 1;
+      } else if (mx == 4 && dr == 1) {
+        sleep(1);
+        // int tl, tr, bl, br;
+        // scan_intersection(&tl, &tr, &bl, &br);
+        // int b = target_y * sx + cp_x;
+        // if (map[b][3] != tl || map[b][0] != tr || map[b][1] != br || map[b][2] != bl) return 0;
+        cp_x -= 1;
+        dr = 0;
+      } else if (mx == 5) return 0;
+      else if (mx != 1) {find_street();  dr = 0;}
+    }
   }
-
-  // Check if the robot reached the target location
-  if (robot_x == target_x && robot_y == target_y) {
-    return 1; // Success
-  } else {
-    return 0; // Failure
+  if (target_y < robot_y) {
+    if (dir == 1) rotate(90);
+    else if (dir == 2) rotate(180);
+    else if (dir == 3) rotate(270);
+    dir = 0;
+    int cp_y = robot_y;
+    int dr = 0;
+    while (cp_y > target_y) {
+      printf("cp_y: %d\n", cp_y);
+      int mx = checkColor(PORT_3, 9);
+      if (mx == 1 && dr == 0) {
+        BT_drive(MOTOR_A, MOTOR_D, 10);
+        dr = 1;
+      } else if (mx == 4 && dr == 1) {
+        sleep(1);
+        BT_all_stop(1);
+        // int tl, tr, bl, br;
+        // scan_intersection(&tl, &tr, &bl, &br);
+        // int b = cp_y * sx + robot_x;
+        // if (map[b][0] != tl || map[b][1] != tr || map[b][2] != br || map[b][3] != bl) return 0;
+        cp_y -= 1;
+        dr = 0;
+      } else if (mx == 5) return 0;
+      else if (mx != 1) {find_street(); dr = 0;}
+    }
+  } else if (target_y > robot_y) {
+    if (dir == 0) rotate(180);
+    else if (dir == 1) rotate(90);
+    else if (dir == 3) rotate(270);
+    dir = 2;
+    int cp_y = robot_y;
+    int dr = 0;
+    while (cp_y < target_y) {
+      printf("cp_y: %d\n", cp_y);
+      int mx = checkColor(PORT_3, 9);
+      if (mx == 1 && dr == 0) {
+        BT_drive(MOTOR_A, MOTOR_D, 10);
+        dr = 1;
+      } else if (mx == 4 && dr == 1) {
+        sleep(1);
+        // int tl, tr, bl, br;
+        // scan_intersection(&tl, &tr, &bl, &br);
+        // int b = cp_y * sx + robot_x;
+        // if (map[b][2] != tl || map[b][3] != tr || map[b][0] != br || map[b][1] != bl) return 0;
+        cp_y += 1;
+        dr = 0;
+      } else if (mx == 5) return 0;
+      else if (mx != 1) {find_street(); dr = 0;}
+    }
   }
-  
-  // move the robot to the location
-  
-  // rotate cur_dir to targ_dir
-  // track dis_x, dis_y, make one 0 first then the other one and we are done
+  return 1;
 
-  return(0);  
+
+
+if (target_y < robot_y) {
+  if (dir == 1) rotate(-90);
+  else if (dir == 2) rotate(180);
+  else if (dir == 3) rotate(90);
+  dir = 0;
+  int cp_y = robot_y;
+  int dr = 0;
+  while (cp_y > target_y) {
+    int mx = checkColor(PORT_3, 9);
+    if (mx == 1 && dr == 0) {
+      BT_drive(MOTOR_A, MOTOR_D, 10);
+      dr = 1;
+    } else if (mx == 4 && dr == 1) {
+      printf("sleeping\n");
+      sleep(1);
+      BT_all_stop(1);
+      // int tl, tr, bl, br;
+      // scan_intersection(&tl, &tr, &bl, &br);
+      // int b = cp_y * sx + robot_x;
+      // if (map[b][0] != tl || map[b][1] != tr || map[b][2] != br || map[b][3] != bl) return 0;
+      cp_y -= 1;
+      dr = 0;
+      printf("cp_y: %d\n", cp_y);
+    } else if (mx == 5) return 0;
+    else if (mx != 1) {find_street(); dr = 0;}
+  }
+} else if (target_y > robot_y) {
+  if (dir == 0) rotate(180);
+  else if (dir == 1) rotate(90);
+  else if (dir == 3) rotate(-90);
+  dir = 2;
+  int cp_y = robot_y;
+  int dr = 0;
+  while (cp_y < target_y) {
+    int mx = checkColor(PORT_3, 9);
+    if (mx == 1 && dr == 0) {
+      BT_drive(MOTOR_A, MOTOR_D, 10);
+      dr = 1;
+    } else if (mx == 4 && dr == 1) {
+      sleep(1);
+      // int tl, tr, bl, br;
+      // scan_intersection(&tl, &tr, &bl, &br);
+      // int b = cp_y * sx + robot_x;
+      // if (map[b][2] != tl || map[b][3] != tr || map[b][0] != br || map[b][1] != bl) return 0;
+      cp_y += 1;
+      dr = 0;
+    } else if (mx == 5) return 0;
+    else if (mx != 1) {find_street(); dr = 0;}
+  }
+}
+BT_all_stop(1);
+printf("y is done! \n");
+printf("robot_x: %d \n", robot_x);
+printf("target_x: %d \n", target_x);
+if (target_x > robot_x) {
+  printf("turn right \n");
+  BT_all_stop(1);
+  if (dir == 0) {printf("turnnn \n"); rotate(-90);}
+  else if (dir == 2) rotate(-90);
+  else if (dir == 3) rotate(180);
+  dir = 1;
+  int cp_x = robot_x;
+  int dr = 0;
+  while (cp_x < target_x) {
+    int mx = checkColor(PORT_3, 9);
+    if (mx == 1 && dr == 0) {
+      BT_drive(MOTOR_A, MOTOR_D, 10);
+      dr = 1;
+    } else if (mx == 4 && dr == 1) {
+      sleep(1);
+      int tl, tr, bl, br;
+      scan_intersection(&tl, &tr, &bl, &br);
+      int b = target_y * sx + cp_x;
+      if (map[b][1] != tl || map[b][2] != tr || map[b][3] != br || map[b][0] != bl) return 0;
+      cp_x += 1;
+      dr = 0;
+    } else if (mx == 5) return 0;
+    else if (mx != 1) {find_street(); dr = 0;}
+  }
+} else if (target_x < robot_x) {
+  if (dir == 0) rotate(-90);
+  else if (dir == 1) rotate(180);
+  else if (dir == 2) rotate(90);
+  dir = 3;
+  int cp_x = robot_x;
+  int dr = 0;
+  while (cp_x > target_x) {
+    int mx = checkColor(PORT_3, 9);
+    if (mx == 1 && dr == 0) {
+      BT_drive(MOTOR_A, MOTOR_D, 10);
+      dr = 1;
+    } else if (mx == 4 && dr == 1) {
+      sleep(1);
+      int tl, tr, bl, br;
+      scan_intersection(&tl, &tr, &bl, &br);
+      int b = target_y * sx + cp_x;
+      if (map[b][3] != tl || map[b][0] != tr || map[b][1] != br || map[b][2] != bl) return 0;
+      cp_x -= 1;
+      dr = 0;
+    } else if (mx == 5) return 0;
+    else if (mx != 1) {find_street(); dr = 0;}
+  }
+}
+return 1;
 }
 
 void calibrate_sensor(void)
